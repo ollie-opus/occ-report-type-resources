@@ -1,0 +1,13 @@
+<svg width="133.5" height="30" viewBox="0 0 694 156" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Permit: Future">
+  <style>
+    .pill { fill: rgb(255,237,212); stroke: transparent; }
+    .ink  { fill: rgb(159,45,0); }
+    @media (prefers-color-scheme: dark) {
+      .pill { fill: rgb(159,45,0); stroke: rgb(255,105,0); }
+      .ink  { fill: rgb(255,237,212); }
+    }
+  </style>
+  <rect class="pill" x="3" y="3" width="688" height="150" rx="75" ry="75" stroke-width="6"/>
+  <g class="ink" transform="translate(40,40) scale(4.75)"><path d="M2.53 3.956A1 1 0 0 0 1 4.804v6.392a1 1 0 0 0 1.53.848l5.113-3.196c.16-.1.279-.233.357-.383v2.73a1 1 0 0 0 1.53.849l5.113-3.196a1 1 0 0 0 0-1.696L9.53 3.956A1 1 0 0 0 8 4.804v2.731a.992.992 0 0 0-.357-.383L2.53 3.956Z"/></g>
+  <g class="ink" transform="translate(138 105.35)"><path d="[full Rubik outline — in permit-future-label.svg.txt]"/></g>
+</svg>
