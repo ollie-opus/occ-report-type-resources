@@ -10,7 +10,8 @@
 //   node build-heading.mjs "Permit to Work" --no-icon
 // The --icon value is a heroicon (or any single-color icon): either a path to an
 // .svg file or the full SVG markup pasted inline. Multi-path icons are fine.
-// --size is h1 (24px), h2 (21px, default) or h3 (17.5px); icon and gap scale with it.
+// --size is h1 (24px), h2 (21px, default) or h3 (17.5px); icon and gap scale with it,
+// and the weight follows the level (h1/h2: Bold 700, h3: SemiBold 600).
 // --icon-color is "<light>" or "<light>:<dark>" and colors only the icon (text stays ink).
 // See permit-to-work/DESIGN-SPEC.md for the design values.
 import fs from 'node:fs';
@@ -171,7 +172,11 @@ for (const p of iconPaths) {
 const inkCenterY = (inkMinY + inkMaxY) / 2;
 
 // ---- text --------------------------------------------------------------
-const font = opentype.parse(fs.readFileSync(path.join(HERE, 'Outfit-SemiBold.ttf')).buffer);
+// h1/h2 are Outfit Bold (700); h3 is Outfit SemiBold (600). Both files are
+// static instances of the Outfit variable font (see DESIGN-SPEC.md).
+const FONT_FILES = { 600: 'Outfit-SemiBold.ttf', 700: 'Outfit-Bold.ttf' };
+const WEIGHTS = { h1: 700, h2: 700, h3: 600 };
+const font = opentype.parse(fs.readFileSync(path.join(HERE, FONT_FILES[WEIGHTS[sizeArg]])).buffer);
 const UPM = font.unitsPerEm;
 const CAP = font.tables.os2.sCapHeight;
 

@@ -16,10 +16,12 @@ Supersedes `LABEL-DESIGN-SPEC.md` (its pill construction is carried over in §4)
 - **All text is vector outlines.** No `<text>` elements, no font dependencies. Text is
   baked to a single `<path>` at build time. Every SVG must render identically in
   browsers, LMS embeds, Figma, email.
-- **Chrome font: Outfit SemiBold (600).** The exact file is committed at
-  `tools/Outfit-SemiBold.ttf` (static instance of the Outfit variable font, from Google
-  Fonts, OFL-licensed — see `tools/OFL.txt`). Do not substitute a re-downloaded copy
-  without re-checking output; glyph coordinates must stay stable.
+- **Chrome font: Outfit.** Two static weights are committed: `tools/Outfit-SemiBold.ttf`
+  (600 — tile eyebrow, h3 headings) and `tools/Outfit-Bold.ttf` (700 — h1/h2 headings).
+  Both are static instances of the Outfit variable font from Google Fonts (Bold was
+  instanced with `fonttools varLib.instancer wght=700`), OFL-licensed — see
+  `tools/OFL.txt`. Do not substitute re-downloaded copies without re-checking output;
+  glyph coordinates must stay stable.
 - **Dark mode** via an inline `<style>` block: light values on classes, dark overrides in
   `@media (prefers-color-scheme: dark)`. No JS, no external CSS.
 - **Accessibility**: `role="img"` + `aria-label` with the human-readable text (the
@@ -74,15 +76,15 @@ Standalone heading for splitting form sections. Transparent background, no conta
 
 - Three sizes, selected with `--size` (default **h2**):
 
-  | Level | Em size | Icon | Gap |
-  |---|---|---|---|
-  | h1 | 24 | 22.9px | 10.3px |
-  | h2 | 21 | 20px | 9px |
-  | h3 | 17.5 | 16.7px | 7.5px |
+  | Level | Em size | Weight | Icon | Gap |
+  |---|---|---|---|---|
+  | h1 | 24 | Bold 700 | 22.9px | 10.3px |
+  | h2 | 21 | Bold 700 | 20px | 9px |
+  | h3 | 17.5 | SemiBold 600 | 16.7px | 7.5px |
 
   Icon and gap scale linearly with the em size (h2 is the reference: 20px icon, 9px gap).
 - Text: mixed case (NOT caps — caps is the *label* treatment; headings need word-shape
-  for scanning), Outfit SemiBold, no extra tracking.
+  for scanning), Outfit at the level's weight, no extra tracking.
 - Icon: square-viewBox heroicon scaled to the level's icon size, placed before the text.
   The icon's *ink* (measured by sampling every path segment, arcs included) is centered
   on the type's cap midline; ink taller than the cap height overflows the band evenly.
