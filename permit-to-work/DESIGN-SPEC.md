@@ -106,12 +106,19 @@ node build-labels.mjs                      # rebuilds all 5 tiles in place
 node build-heading.mjs                     # rebuilds permit-details-heading.svg
 node build-heading.mjs "Work Description"  # new heading -> work-description-heading.svg
 node build-heading.mjs "Sign-off" out.svg  # explicit output name
+
+# custom icon: paste the heroicon SVG inline, or point at an .svg file
+node build-heading.mjs "Person Responsible" --icon '<svg viewBox="0 0 20 20" ...>...</svg>'
+node build-heading.mjs "Person Responsible" --icon person.svg
 ```
 
 - `build-labels.mjs` regenerates tile chrome around the preserved pills. Run it after
   changing any tile design value, then run the pill verification in §2.
-- `build-heading.mjs` takes the heading text (and optionally a filename). To use a
-  different icon, edit `ICON_D`/`ICON_BOX` at the top (paste a heroicon path `d`).
+- `build-heading.mjs` takes the heading text, an optional output filename, and an
+  optional `--icon` (full SVG markup inline, or a path to an .svg file; multi-path
+  icons fine; fills are stripped so it inherits the ink color). Without `--icon` it
+  uses the bars icon. Icon ink is auto-centered on the cap midline (+0.07em optical
+  drop), so any square-viewBox heroicon drops in without alignment tweaks.
 - Dark-forced previews are written to `tools/preview/` (gitignored — never commit;
   the real files switch via media query).
 
