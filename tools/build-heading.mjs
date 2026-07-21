@@ -8,6 +8,7 @@
 //   node build-heading.mjs "Missing Information" --size h1
 //   node build-heading.mjs "Hazards" --icon-color '#D97706:#FBBF24'
 //   node build-heading.mjs "Permit to Work" --no-icon
+//   node build-heading.mjs "Hazards" --underline       (faint full-width rule below)
 // The --icon value is a heroicon (or any single-color icon): either a path to an
 // .svg file or the full SVG markup pasted inline. Multi-path icons are fine.
 // --size is h1 (24px), h2 (21px, default) or h3 (17.5px); icon and gap scale with it,
@@ -28,12 +29,14 @@ let iconArg = null;
 let sizeArg = 'h2';
 let iconColorArg = null;
 let noIcon = false;
+let underline = false;
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--icon') iconArg = argv[++i];
   else if (argv[i] === '--size') sizeArg = argv[++i];
   else if (argv[i] === '--icon-color') iconColorArg = argv[++i];
   else if (argv[i] === '--no-icon') noIcon = true;
+  else if (argv[i] === '--underline') underline = true;
   else positional.push(argv[i]);
 }
 const SIZES = { h1: 24, h2: 21, h3: 17.5 };
@@ -229,28 +232,40 @@ if (!noIcon) {
 }
 const iconBottom = noIcon ? 0 : iconY + inkMaxY * iconScale;
 
-const H = Math.ceil(Math.max(baseline + descent, iconBottom));
+let H = Math.ceil(Math.max(baseline + descent, iconBottom));
 
 const textX = noIcon ? 0 : ICON_SIZE + GAP;
 const { d } = textPath(TEXT, textX, baseline, SIZE);
 const W = Math.ceil(textX + probe.advance);
 
+// Optional underline: a faint 1px full-width rule (tile-border grey) sitting a
+// scaled gap below the lowest ink; it becomes the canvas's bottom edge.
+let ruleY = 0;
+if (underline) {
+  const RULE_GAP = Math.round(SIZE * (6 / 21) * 10) / 10;   // 6px at h2
+  ruleY = Math.ceil(Math.max(baseline + descent, iconBottom) + RULE_GAP);
+  H = ruleY + 1;
+}
+
 const [iconLight, iconDark] = iconColorArg ? iconColorArg.split(':') : [];
 const iconClass = iconColorArg ? 'icon' : 'ink';
 const iconLightRule = iconColorArg ? `\n    .icon { fill: ${iconLight}; }` : '';
 const iconDarkRule = iconColorArg ? `\n      .icon { fill: ${iconDark || iconLight}; }` : '';
+const ruleLightRule = underline ? `\n    .rule { fill: rgb(228,230,235); }` : '';
+const ruleDarkRule = underline ? `\n      .rule { fill: rgb(66,77,96); }` : '';
 
 const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${TEXT}">
   <style>
-    .ink { fill: #172032; }${iconLightRule}
+    .ink { fill: #172032; }${iconLightRule}${ruleLightRule}
     @media (prefers-color-scheme: dark) {
-      .ink { fill: rgb(230,234,242); }${iconDarkRule}
+      .ink { fill: rgb(230,234,242); }${iconDarkRule}${ruleDarkRule}
     }
   </style>
   <g class="ink">${noIcon ? '' : `
     <g class="${iconClass}" transform="translate(0,${Math.round(iconY * 10) / 10}) scale(${iconScale})">${iconPaths.join('')}</g>`}
     <path d="${d}"></path>
-  </g>
+  </g>${underline ? `
+  <rect class="rule" x="0" y="${ruleY}" width="${W}" height="1"></rect>` : ''}
 </svg>
 `;
 

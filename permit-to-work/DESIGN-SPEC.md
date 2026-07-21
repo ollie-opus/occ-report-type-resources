@@ -96,6 +96,10 @@ Standalone heading for splitting form sections. Transparent background, no conta
   right, and bottom edges (bar sub-pixel rounding). Width/height computed from the
   measured bounding box of the text *and* the icon, so a tall icon grows the canvas
   instead of clipping.
+- Optional underline (`--underline`, on for all h2s): a **1px** full-width rule in the
+  tile-border greys (`rgb(228,230,235)` light / `rgb(66,77,96)` dark), sitting a
+  scaled gap below the lowest ink (**6px at h2**, `SIZE × 6/21` elsewhere). The rule
+  is the canvas's bottom edge.
 
 ## 4. Status pill (inside tiles) — legacy construction
 
@@ -131,6 +135,7 @@ node build-heading.mjs "Person Responsible" --icon person.svg
 node build-heading.mjs "Missing Information" --size h1           # h1/h2/h3, default h2
 node build-heading.mjs "Hazards" --icon-color '#D97706:#FBBF24'  # icon-only light:dark fills
 node build-heading.mjs "Permit to Work" --size h1 --no-icon      # text only
+node build-heading.mjs "Hazards" --underline                     # faint rule below
 ```
 
 - `build-labels.mjs` regenerates tile chrome around the preserved pills. Run it after
