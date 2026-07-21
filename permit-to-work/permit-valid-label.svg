@@ -1,11 +1,11 @@
 <svg width="204.3" height="50" viewBox="0 0 204.3 50" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Permit Status: Valid">
   <style>
-    .tile  { fill: #FCFCFD; stroke: rgb(228,230,235); }
+    .tile  { fill: #FBFCFD; stroke: rgb(228,230,235); }
     .label { fill: rgb(102,112,133); }
     .pill  { fill: rgb(208,250,229); stroke: transparent; }
     .ink   { fill: rgb(0,96,69); }
     @media (prefers-color-scheme: dark) {
-      .tile  { fill: #1E2634; stroke: rgb(66,77,96); }
+      .tile  { fill: #172032; stroke: rgb(66,77,96); }
       .label { fill: rgb(167,176,191); }
       .pill  { fill: rgb(0,96,69); stroke: rgb(0,188,125); }
       .ink   { fill: rgb(208,250,229); }
