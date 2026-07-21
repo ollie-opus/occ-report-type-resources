@@ -76,7 +76,7 @@ Standalone heading for splitting form sections. Transparent background, no conta
 
   | Level | Em size | Icon | Gap |
   |---|---|---|---|
-  | h1 | 31.5 | 30px | 13.5px |
+  | h1 | 24 | 22.9px | 10.3px |
   | h2 | 21 | 20px | 9px |
   | h3 | 17.5 | 16.7px | 7.5px |
 
@@ -90,9 +90,10 @@ Standalone heading for splitting form sections. Transparent background, no conta
   `--icon-color "<light>:<dark>"` is given — then only the icon takes those fills (used
   for the amber warning icon on `missing-information-heading.svg`:
   `#D97706` light / `#FBBF24` dark).
-- Canvas hugs the ink: 1px padding all round; width/height computed from the measured
-  bounding box of the text *and* the icon, so a tall icon grows the canvas instead of
-  clipping.
+- Canvas: **8px top padding, 0 sides and bottom** — the ink is flush with the left,
+  right, and bottom edges (bar sub-pixel rounding). Width/height computed from the
+  measured bounding box of the text *and* the icon, so a tall icon grows the canvas
+  instead of clipping.
 
 ## 4. Status pill (inside tiles) — legacy construction
 

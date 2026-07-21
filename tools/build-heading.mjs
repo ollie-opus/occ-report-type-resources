@@ -10,7 +10,7 @@
 //   node build-heading.mjs "Permit to Work" --no-icon
 // The --icon value is a heroicon (or any single-color icon): either a path to an
 // .svg file or the full SVG markup pasted inline. Multi-path icons are fine.
-// --size is h1 (31.5px), h2 (21px, default) or h3 (17.5px); icon and gap scale with it.
+// --size is h1 (24px), h2 (21px, default) or h3 (17.5px); icon and gap scale with it.
 // --icon-color is "<light>" or "<light>:<dark>" and colors only the icon (text stays ink).
 // See permit-to-work/DESIGN-SPEC.md for the design values.
 import fs from 'node:fs';
@@ -35,7 +35,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (argv[i] === '--no-icon') noIcon = true;
   else positional.push(argv[i]);
 }
-const SIZES = { h1: 31.5, h2: 21, h3: 17.5 };
+const SIZES = { h1: 24, h2: 21, h3: 17.5 };
 if (!(sizeArg in SIZES)) throw new Error(`--size must be one of: ${Object.keys(SIZES).join(', ')}`);
 const TEXT = positional[0] || 'Permit Details';
 const OUT = positional[1] || TEXT.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-heading.svg';
@@ -204,7 +204,7 @@ function textPath(text, x, y, size) {
   return { d, advance: cursor - x, bb };
 }
 
-const PAD = 1;                 // hairline margin so nothing clips
+const PAD_TOP = 8;             // canvas padding: 8px top, 0 sides and bottom
 const probe = textPath(TEXT, 0, 0, SIZE);
 const ascent = -probe.bb.y1;   // ink above baseline
 const descent = Math.max(0, probe.bb.y2);
@@ -212,23 +212,23 @@ const descent = Math.max(0, probe.bb.y2);
 // The icon's INK (not its box) is centered on the type's cap midline. An icon
 // taller than the cap height overflows the cap band symmetrically, and the
 // canvas grows to contain it — icon ink is never clipped.
-let baseline = PAD + ascent;
+let baseline = PAD_TOP + ascent;
 const iconScale = ICON_SIZE / ICON_BOX;
 let iconY = (baseline - CAP_PX / 2) - inkCenterY * iconScale;
 
 if (!noIcon) {
   const iconTop = iconY + inkMinY * iconScale;
-  const shift = Math.max(0, PAD - iconTop);   // icon pokes above the text ink
+  const shift = Math.max(0, PAD_TOP - iconTop);   // icon pokes above the text ink
   baseline += shift;
   iconY += shift;
 }
 const iconBottom = noIcon ? 0 : iconY + inkMaxY * iconScale;
 
-const H = Math.ceil(Math.max(baseline + descent, iconBottom) + PAD);
+const H = Math.ceil(Math.max(baseline + descent, iconBottom));
 
-const textX = noIcon ? PAD : PAD + ICON_SIZE + GAP;
+const textX = noIcon ? 0 : ICON_SIZE + GAP;
 const { d } = textPath(TEXT, textX, baseline, SIZE);
-const W = Math.ceil(textX + probe.advance + PAD);
+const W = Math.ceil(textX + probe.advance);
 
 const [iconLight, iconDark] = iconColorArg ? iconColorArg.split(':') : [];
 const iconClass = iconColorArg ? 'icon' : 'ink';
@@ -243,7 +243,7 @@ const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http
     }
   </style>
   <g class="ink">${noIcon ? '' : `
-    <g class="${iconClass}" transform="translate(${PAD},${Math.round(iconY * 10) / 10}) scale(${iconScale})">${iconPaths.join('')}</g>`}
+    <g class="${iconClass}" transform="translate(0,${Math.round(iconY * 10) / 10}) scale(${iconScale})">${iconPaths.join('')}</g>`}
     <path d="${d}"></path>
   </g>
 </svg>
