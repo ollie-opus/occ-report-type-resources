@@ -1,0 +1,13 @@
+{
+  "name": "permit-svg-tools",
+  "private": true,
+  "type": "module",
+  "description": "Generators for the permit-to-work SVG assets (tiles, headings). See permit-to-work/DESIGN-SPEC.md.",
+  "scripts": {
+    "labels": "node build-labels.mjs",
+    "heading": "node build-heading.mjs"
+  },
+  "dependencies": {
+    "opentype.js": "2.0.0"
+  }
+}

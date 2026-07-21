@@ -1,0 +1,9 @@
+# Claude Code local settings — never ship
+.claude/
+
+# Build tooling artifacts
+tools/node_modules/
+tools/preview/
+
+# macOS
+.DS_Store
