@@ -16,12 +16,15 @@ Supersedes `LABEL-DESIGN-SPEC.md` (its pill construction is carried over in §4)
 - **All text is vector outlines.** No `<text>` elements, no font dependencies. Text is
   baked to a single `<path>` at build time. Every SVG must render identically in
   browsers, LMS embeds, Figma, email.
-- **Chrome font: Outfit.** Two static weights are committed: `tools/Outfit-SemiBold.ttf`
-  (600 — tile eyebrow, h3 headings) and `tools/Outfit-Bold.ttf` (700 — h1/h2 headings).
-  Both are static instances of the Outfit variable font from Google Fonts (Bold was
-  instanced with `fonttools varLib.instancer wght=700`), OFL-licensed — see
-  `tools/OFL.txt`. Do not substitute re-downloaded copies without re-checking output;
-  glyph coordinates must stay stable.
+- **Chrome fonts.** Headings use **SF Pro**: `tools/SFPro-Bold.ttf` (wght 700, h1/h2)
+  and `tools/SFPro-Semibold.ttf` (wght 590 — SF's named Semibold instance, h3). Both
+  are static instances of macOS's system font `/System/Library/Fonts/SFNS.ttf`
+  (pinned `wdth=100 opsz=28 GRAD=400` with `fonttools varLib.instancer`). SF Pro is
+  Apple-licensed, **not** OFL — fine for in-house assets, but do not redistribute the
+  TTFs themselves. The tile eyebrow stays **Outfit SemiBold (600)**
+  (`tools/Outfit-SemiBold.ttf`, OFL — see `tools/OFL.txt`; `tools/Outfit-Bold.ttf` is
+  kept for reference). Do not substitute regenerated copies without re-checking
+  output; glyph coordinates must stay stable.
 - **Dark mode** via an inline `<style>` block: light values on classes, dark overrides in
   `@media (prefers-color-scheme: dark)`. No JS, no external CSS.
 - **Accessibility**: `role="img"` + `aria-label` with the human-readable text (the
@@ -78,13 +81,14 @@ Standalone heading for splitting form sections. Transparent background, no conta
 
   | Level | Em size | Weight | Icon | Gap |
   |---|---|---|---|---|
-  | h1 | 24 | Bold 700 | 22.9px | 10.3px |
-  | h2 | 21 | Bold 700 | 20px | 9px |
-  | h3 | 17.5 | SemiBold 600 | 16.7px | 7.5px |
+  | h1 | 24 | SF Bold (700) | 22.9px | 10.3px |
+  | h2 | 21 | SF Bold (700) | 20px | 9px |
+  | h3 | 17.5 | SF Semibold (590) | 16.7px | 7.5px |
 
   Icon and gap scale linearly with the em size (h2 is the reference: 20px icon, 9px gap).
 - Text: mixed case (NOT caps — caps is the *label* treatment; headings need word-shape
-  for scanning), Outfit at the level's weight, no extra tracking.
+  for scanning), SF Pro at the level's weight, no extra tracking. Laid out with
+  **fontkit** (full GPOS shaping — kerning included).
 - Icon: square-viewBox heroicon scaled to the level's icon size, placed before the text.
   The icon's *ink* (measured by sampling every path segment, arcs included) is centered
   on the type's cap midline; ink taller than the cap height overflows the band evenly.
@@ -121,7 +125,7 @@ The pills were built in an earlier process and are only ever *carried forward*. 
 ## 5. Tooling
 
 ```sh
-cd tools && npm install        # once; opentype.js pinned exactly (see Gotchas)
+cd tools && npm install        # once; opentype.js (labels) + fontkit (headings)
 
 node build-labels.mjs                      # rebuilds all 5 tiles in place
 node build-heading.mjs                     # rebuilds permit-details-heading.svg
@@ -161,8 +165,14 @@ node build-heading.mjs "Hazards" --underline                     # faint rule be
   dependency is pinned **exactly** at 2.0.0; don't bump it casually — a bump makes
   every regenerated file diff even with no design change.
 - **opentype.js text shaping crashes on some fonts** (GSUB features it can't parse,
-  e.g. Inter). Both scripts lay out per-glyph with `charToGlyph` + `getKerningValue`
-  and never call `font.getPath(string)`.
+  e.g. Inter). `build-labels.mjs` lays out per-glyph with `charToGlyph` +
+  `getKerningValue` and never calls `font.getPath(string)`.
+- **opentype.js reads zero kerning from the SF Pro statics** (it can't parse the
+  system font's GPOS lookups). That's why `build-heading.mjs` uses **fontkit**
+  (`font.layout()`, full shaping) instead.
+- **SFNS's `wght` axis is nonlinear**: named instances sit at Semibold = 590,
+  Bold = 700 (not the CSS 600/700 you'd guess). Use the named-instance coordinates
+  when re-instancing.
 - **macOS `qlmanage` follows the system appearance** when resolving
   `prefers-color-scheme` — a "light" render on a dark-mode Mac silently comes out
   dark. For previews, flatten the media query (strip it for light, apply overrides

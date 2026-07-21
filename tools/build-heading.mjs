@@ -1,4 +1,4 @@
-// Generates a standalone form-section heading SVG (icon + Outfit SemiBold text).
+// Generates a standalone form-section heading SVG (icon + SF Pro text).
 // Usage:
 //   node build-heading.mjs                                -> "Permit Details", default icon
 //   node build-heading.mjs "Work Description"             -> work-description-heading.svg
@@ -17,8 +17,7 @@
 // See permit-to-work/DESIGN-SPEC.md for the design values.
 import fs from 'node:fs';
 import path from 'node:path';
-import opentype from 'opentype.js';
-import { toD } from './serialize.mjs';
+import * as fontkit from 'fontkit';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const REPO = path.join(HERE, '..', 'permit-to-work');
@@ -175,13 +174,15 @@ for (const p of iconPaths) {
 const inkCenterY = (inkMinY + inkMaxY) / 2;
 
 // ---- text --------------------------------------------------------------
-// h1/h2 are Outfit Bold (700); h3 is Outfit SemiBold (600). Both files are
-// static instances of the Outfit variable font (see DESIGN-SPEC.md).
-const FONT_FILES = { 600: 'Outfit-SemiBold.ttf', 700: 'Outfit-Bold.ttf' };
+// SF Pro: h1/h2 are Bold (wght 700); h3 is Semibold (wght 590 — SF's named
+// Semibold instance). Both files are static instances of macOS's system font
+// (see DESIGN-SPEC.md). Laid out with fontkit — opentype.js cannot read the
+// system font's GPOS kerning.
+const FONT_FILES = { 600: 'SFPro-Semibold.ttf', 700: 'SFPro-Bold.ttf' };
 const WEIGHTS = { h1: 700, h2: 700, h3: 600 };
-const font = opentype.parse(fs.readFileSync(path.join(HERE, FONT_FILES[WEIGHTS[sizeArg]])).buffer);
+const font = fontkit.openSync(path.join(HERE, FONT_FILES[WEIGHTS[sizeArg]]));
 const UPM = font.unitsPerEm;
-const CAP = font.tables.os2.sCapHeight;
+const CAP = font.capHeight;
 
 const SIZE = SIZES[sizeArg];
 const CAP_PX = (CAP / UPM) * SIZE;
@@ -190,25 +191,40 @@ const CAP_PX = (CAP / UPM) * SIZE;
 const ICON_SIZE = Math.round(SIZE * (20 / 21) * 10) / 10;
 const GAP = Math.round(SIZE * (9 / 21) * 10) / 10;
 
+// Full shaping via fontkit (kerning etc. from GPOS). Glyph paths are in
+// y-up font units; flip and scale into SVG space, rounding to 2 decimals.
 function textPath(text, x, y, size) {
   const scale = size / UPM;
+  const run = font.layout(text);
+  const r = n => Math.round(n * 100) / 100;
   let cursor = x;
   let d = '';
-  let prev = null;
   const bb = { x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity };
-  for (const ch of text) {
-    const glyph = font.charToGlyph(ch);
-    if (prev) cursor += font.getKerningValue(prev, glyph) * scale;
-    const p = glyph.getPath(cursor, y, size);
-    const gb = p.getBoundingBox();
-    if (gb.x1 !== 0 || gb.x2 !== 0) {
-      bb.x1 = Math.min(bb.x1, gb.x1); bb.y1 = Math.min(bb.y1, gb.y1);
-      bb.x2 = Math.max(bb.x2, gb.x2); bb.y2 = Math.max(bb.y2, gb.y2);
+  run.glyphs.forEach((glyph, i) => {
+    const pos = run.positions[i];
+    const gx = cursor + pos.xOffset * scale;
+    const gy = y - pos.yOffset * scale;
+    const X = v => r(gx + v * scale);
+    const Y = v => r(gy - v * scale);
+    for (const c of glyph.path.commands) {
+      const a = c.args;
+      switch (c.command) {
+        case 'moveTo': d += `M${X(a[0])} ${Y(a[1])}`; break;
+        case 'lineTo': d += `L${X(a[0])} ${Y(a[1])}`; break;
+        case 'quadraticCurveTo': d += `Q${X(a[0])} ${Y(a[1])} ${X(a[2])} ${Y(a[3])}`; break;
+        case 'bezierCurveTo': d += `C${X(a[0])} ${Y(a[1])} ${X(a[2])} ${Y(a[3])} ${X(a[4])} ${Y(a[5])}`; break;
+        case 'closePath': d += 'Z'; break;
+      }
     }
-    d += toD(p.commands);
-    cursor += glyph.advanceWidth * scale;
-    prev = glyph;
-  }
+    const gb = glyph.bbox;
+    if (gb.maxX > gb.minX) {
+      bb.x1 = Math.min(bb.x1, gx + gb.minX * scale);
+      bb.x2 = Math.max(bb.x2, gx + gb.maxX * scale);
+      bb.y1 = Math.min(bb.y1, gy - gb.maxY * scale);
+      bb.y2 = Math.max(bb.y2, gy - gb.minY * scale);
+    }
+    cursor += pos.xAdvance * scale;
+  });
   return { d, advance: cursor - x, bb };
 }
 
