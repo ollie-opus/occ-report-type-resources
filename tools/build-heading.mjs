@@ -5,8 +5,13 @@
 //   node build-heading.mjs "Sign-off" sign-off.svg        -> explicit output name
 //   node build-heading.mjs "Work Description" --icon icon.svg
 //   node build-heading.mjs "Work Description" --icon '<svg viewBox="0 0 20 20">...</svg>'
+//   node build-heading.mjs "Missing Information" --size h1
+//   node build-heading.mjs "Hazards" --icon-color '#D97706:#FBBF24'
+//   node build-heading.mjs "Permit to Work" --no-icon
 // The --icon value is a heroicon (or any single-color icon): either a path to an
 // .svg file or the full SVG markup pasted inline. Multi-path icons are fine.
+// --size is h1 (31.5px), h2 (21px, default) or h3 (17.5px); icon and gap scale with it.
+// --icon-color is "<light>" or "<light>:<dark>" and colors only the icon (text stays ink).
 // See permit-to-work/DESIGN-SPEC.md for the design values.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,11 +24,19 @@ const REPO = path.join(HERE, '..', 'permit-to-work');
 // ---- CLI ---------------------------------------------------------------
 const argv = process.argv.slice(2);
 let iconArg = null;
+let sizeArg = 'h2';
+let iconColorArg = null;
+let noIcon = false;
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--icon') iconArg = argv[++i];
+  else if (argv[i] === '--size') sizeArg = argv[++i];
+  else if (argv[i] === '--icon-color') iconColorArg = argv[++i];
+  else if (argv[i] === '--no-icon') noIcon = true;
   else positional.push(argv[i]);
 }
+const SIZES = { h1: 31.5, h2: 21, h3: 17.5 };
+if (!(sizeArg in SIZES)) throw new Error(`--size must be one of: ${Object.keys(SIZES).join(', ')}`);
 const TEXT = positional[0] || 'Permit Details';
 const OUT = positional[1] || TEXT.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-heading.svg';
 
@@ -49,12 +62,56 @@ const iconPaths = [...iconSrc.matchAll(/<path\b[^>]*?\/?>(?:<\/path>)?/g)]
     .replace(/><\/path>$/, '></path>'));
 if (!iconPaths.length) throw new Error('icon has no <path> elements');
 
-// Approximate ink bounding box from path endpoints/control points (good enough
-// for optical centering; arc curvature extremes are ignored).
+// Ink bounding box (vertical) by sampling every segment, including curve and
+// arc interiors — endpoint-only scanning badly misjudges circle-based icons
+// (e.g. an ellipsis circle whose arc endpoints all sit near the middle).
+const SAMPLES = 24;
+
+function sampleArcY(x1, y1, rx, ry, phiDeg, largeArc, sweep, x2, y2, see) {
+  rx = Math.abs(rx); ry = Math.abs(ry);
+  if (!rx || !ry) { see(y2); return; }
+  const phi = (phiDeg * Math.PI) / 180, cos = Math.cos(phi), sin = Math.sin(phi);
+  const dx = (x1 - x2) / 2, dy = (y1 - y2) / 2;
+  const x1p = cos * dx + sin * dy, y1p = -sin * dx + cos * dy;
+  const lam = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+  if (lam > 1) { const s = Math.sqrt(lam); rx *= s; ry *= s; }
+  const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+  let coef = Math.sqrt(Math.max(0, (rx * rx * ry * ry - den) / den));
+  if (largeArc === sweep) coef = -coef;
+  const cxp = (coef * rx * y1p) / ry, cyp = (-coef * ry * x1p) / rx;
+  const cy = sin * cxp + cos * cyp + (y1 + y2) / 2;
+  const ang = (ux, uy, vx, vy) => {
+    const dot = ux * vx + uy * vy, len = Math.hypot(ux, uy) * Math.hypot(vx, vy);
+    let a = Math.acos(Math.min(1, Math.max(-1, dot / len)));
+    return (ux * vy - uy * vx < 0) ? -a : a;
+  };
+  const th1 = ang(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+  let dth = ang((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+  if (!sweep && dth > 0) dth -= 2 * Math.PI;
+  if (sweep && dth < 0) dth += 2 * Math.PI;
+  for (let t = 0; t <= SAMPLES; t++) {
+    const th = th1 + (dth * t) / SAMPLES;
+    see(sin * rx * Math.cos(th) + cos * ry * Math.sin(th) + cy);
+  }
+}
+
 function approxPathBBox(d) {
   let x = 0, y = 0, sx = 0, sy = 0;
+  let cx = null, cy = null, qx = null, qy = null;   // last cubic/quad control point
   let minY = Infinity, maxY = -Infinity;
   const see = py => { minY = Math.min(minY, py); maxY = Math.max(maxY, py); };
+  const cubicY = (y0, y1, y2, y3) => {
+    for (let t = 0; t <= SAMPLES; t++) {
+      const u = t / SAMPLES, a = 1 - u;
+      see(a * a * a * y0 + 3 * a * a * u * y1 + 3 * a * u * u * y2 + u * u * u * y3);
+    }
+  };
+  const quadY = (y0, y1, y2) => {
+    for (let t = 0; t <= SAMPLES; t++) {
+      const u = t / SAMPLES, a = 1 - u;
+      see(a * a * y0 + 2 * a * u * y1 + u * u * y2);
+    }
+  };
   const tokens = [...d.matchAll(/([MmLlHhVvCcSsQqTtAaZz])|(-?\d*\.?\d+(?:e[+-]?\d+)?)/gi)];
   let i = 0;
   const num = () => parseFloat(tokens[i++][2]);
@@ -62,15 +119,43 @@ function approxPathBBox(d) {
   while (i < tokens.length) {
     if (tokens[i][1]) { cmd = tokens[i++][1]; if (cmd === 'Z' || cmd === 'z') { x = sx; y = sy; continue; } }
     const rel = cmd === cmd.toLowerCase();
-    switch (cmd.toUpperCase()) {
+    const upper = cmd.toUpperCase();
+    if (upper !== 'C' && upper !== 'S') { cx = null; cy = null; }
+    if (upper !== 'Q' && upper !== 'T') { qx = null; qy = null; }
+    switch (upper) {
       case 'M': x = rel ? x + num() : num(); y = rel ? y + num() : num(); sx = x; sy = y; see(y); cmd = rel ? 'l' : 'L'; break;
       case 'L': x = rel ? x + num() : num(); y = rel ? y + num() : num(); see(y); break;
       case 'H': x = rel ? x + num() : num(); break;
       case 'V': y = rel ? y + num() : num(); see(y); break;
-      case 'C': { const y1 = rel ? y + (num(), num()) : (num(), num()); see(y1); const y2 = rel ? y + (num(), num()) : (num(), num()); see(y2); x = rel ? x + num() : num(); y = rel ? y + num() : num(); see(y); break; }
-      case 'S': case 'Q': { const y1 = rel ? y + (num(), num()) : (num(), num()); see(y1); x = rel ? x + num() : num(); y = rel ? y + num() : num(); see(y); break; }
-      case 'T': x = rel ? x + num() : num(); y = rel ? y + num() : num(); see(y); break;
-      case 'A': { num(); num(); num(); num(); num(); x = rel ? x + num() : num(); y = rel ? y + num() : num(); see(y); break; }
+      case 'C': {
+        const x1 = rel ? x + num() : num(), y1 = rel ? y + num() : num();
+        const x2 = rel ? x + num() : num(), y2 = rel ? y + num() : num();
+        const x3 = rel ? x + num() : num(), y3 = rel ? y + num() : num();
+        cubicY(y, y1, y2, y3); cx = x2; cy = y2; x = x3; y = y3; break;
+      }
+      case 'S': {
+        const y1 = cy !== null ? 2 * y - cy : y;
+        const x2 = rel ? x + num() : num(), y2 = rel ? y + num() : num();
+        const x3 = rel ? x + num() : num(), y3 = rel ? y + num() : num();
+        cubicY(y, y1, y2, y3); cx = x2; cy = y2; x = x3; y = y3; break;
+      }
+      case 'Q': {
+        const x1 = rel ? x + num() : num(), y1 = rel ? y + num() : num();
+        const x2 = rel ? x + num() : num(), y2 = rel ? y + num() : num();
+        quadY(y, y1, y2); qx = x1; qy = y1; x = x2; y = y2; break;
+      }
+      case 'T': {
+        const y1 = qy !== null ? 2 * y - qy : y;
+        qx = qx !== null ? 2 * x - qx : x; qy = y1;
+        const x2 = rel ? x + num() : num(), y2 = rel ? y + num() : num();
+        quadY(y, y1, y2); x = x2; y = y2; break;
+      }
+      case 'A': {
+        const rx = num(), ry = num(), rot = num(), laf = num(), swf = num();
+        const x2 = rel ? x + num() : num(), y2 = rel ? y + num() : num();
+        sampleArcY(x, y, rx, ry, rot, laf, swf, x2, y2, see);
+        x = x2; y = y2; break;
+      }
     }
   }
   return { minY, maxY };
@@ -90,10 +175,12 @@ const font = opentype.parse(fs.readFileSync(path.join(HERE, 'Outfit-SemiBold.ttf
 const UPM = font.unitsPerEm;
 const CAP = font.tables.os2.sCapHeight;
 
-const SIZE = 21;
+const SIZE = SIZES[sizeArg];
 const CAP_PX = (CAP / UPM) * SIZE;
-const ICON_SIZE = 20;          // rendered size in px
-const GAP = 9;                 // icon -> text
+// Icon and gap scale with the em size; at the h2 reference size they are the
+// original 20px icon and 9px gap.
+const ICON_SIZE = Math.round(SIZE * (20 / 21) * 10) / 10;
+const GAP = Math.round(SIZE * (9 / 21) * 10) / 10;
 
 function textPath(text, x, y, size) {
   const scale = size / UPM;
@@ -122,30 +209,41 @@ const probe = textPath(TEXT, 0, 0, SIZE);
 const ascent = -probe.bb.y1;   // ink above baseline
 const descent = Math.max(0, probe.bb.y2);
 
-const H = Math.ceil(ascent + descent + PAD * 2);
-const baseline = PAD + ascent;
-
-// Optical alignment: the icon's INK (not its box) is centered on the cap
-// midline, then dropped 0.07em — mixed-case text has its visual mass below the
-// cap midline, so a mathematically centered icon reads slightly high.
-const capMidline = baseline - CAP_PX / 2;
-const DROP = 0.07 * SIZE;
+// The icon's INK (not its box) is centered on the type's cap midline. An icon
+// taller than the cap height overflows the cap band symmetrically, and the
+// canvas grows to contain it — icon ink is never clipped.
+let baseline = PAD + ascent;
 const iconScale = ICON_SIZE / ICON_BOX;
-const iconY = capMidline + DROP - inkCenterY * iconScale;
+let iconY = (baseline - CAP_PX / 2) - inkCenterY * iconScale;
 
-const textX = PAD + ICON_SIZE + GAP;
+if (!noIcon) {
+  const iconTop = iconY + inkMinY * iconScale;
+  const shift = Math.max(0, PAD - iconTop);   // icon pokes above the text ink
+  baseline += shift;
+  iconY += shift;
+}
+const iconBottom = noIcon ? 0 : iconY + inkMaxY * iconScale;
+
+const H = Math.ceil(Math.max(baseline + descent, iconBottom) + PAD);
+
+const textX = noIcon ? PAD : PAD + ICON_SIZE + GAP;
 const { d } = textPath(TEXT, textX, baseline, SIZE);
 const W = Math.ceil(textX + probe.advance + PAD);
 
+const [iconLight, iconDark] = iconColorArg ? iconColorArg.split(':') : [];
+const iconClass = iconColorArg ? 'icon' : 'ink';
+const iconLightRule = iconColorArg ? `\n    .icon { fill: ${iconLight}; }` : '';
+const iconDarkRule = iconColorArg ? `\n      .icon { fill: ${iconDark || iconLight}; }` : '';
+
 const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${TEXT}">
   <style>
-    .ink { fill: #172032; }
+    .ink { fill: #172032; }${iconLightRule}
     @media (prefers-color-scheme: dark) {
-      .ink { fill: rgb(230,234,242); }
+      .ink { fill: rgb(230,234,242); }${iconDarkRule}
     }
   </style>
-  <g class="ink">
-    <g transform="translate(${PAD},${Math.round(iconY * 10) / 10}) scale(${iconScale})">${iconPaths.join('')}</g>
+  <g class="ink">${noIcon ? '' : `
+    <g class="${iconClass}" transform="translate(${PAD},${Math.round(iconY * 10) / 10}) scale(${iconScale})">${iconPaths.join('')}</g>`}
     <path d="${d}"></path>
   </g>
 </svg>

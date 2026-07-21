@@ -70,15 +70,29 @@ done
 
 ## 3. Section heading (`*-heading.svg`)
 
-Standalone h2 for splitting form sections. Transparent background, no container.
+Standalone heading for splitting form sections. Transparent background, no container.
 
+- Three sizes, selected with `--size` (default **h2**):
+
+  | Level | Em size | Icon | Gap |
+  |---|---|---|---|
+  | h1 | 31.5 | 30px | 13.5px |
+  | h2 | 21 | 20px | 9px |
+  | h3 | 17.5 | 16.7px | 7.5px |
+
+  Icon and gap scale linearly with the em size (h2 is the reference: 20px icon, 9px gap).
 - Text: mixed case (NOT caps — caps is the *label* treatment; headings need word-shape
-  for scanning), Outfit SemiBold, em size **21**, no extra tracking.
-- Icon: 20×20-viewBox heroicon rendered at **20px**, placed before the text, **9px** gap.
-  Vertically centered on the type's cap midline with a small optical nudge (heroicon ink
-  sits high in its box). Shares the text fill so it recolors with the theme.
-- Canvas hugs the ink: 1px padding all round; width/height computed from the text's
-  measured bounding box.
+  for scanning), Outfit SemiBold, no extra tracking.
+- Icon: square-viewBox heroicon scaled to the level's icon size, placed before the text.
+  The icon's *ink* (measured by sampling every path segment, arcs included) is centered
+  on the type's cap midline; ink taller than the cap height overflows the band evenly.
+  Shares the text fill so it recolors with the theme, unless
+  `--icon-color "<light>:<dark>"` is given — then only the icon takes those fills (used
+  for the amber warning icon on `missing-information-heading.svg`:
+  `#D97706` light / `#FBBF24` dark).
+- Canvas hugs the ink: 1px padding all round; width/height computed from the measured
+  bounding box of the text *and* the icon, so a tall icon grows the canvas instead of
+  clipping.
 
 ## 4. Status pill (inside tiles) — legacy construction
 
@@ -110,15 +124,22 @@ node build-heading.mjs "Sign-off" out.svg  # explicit output name
 # custom icon: paste the heroicon SVG inline, or point at an .svg file
 node build-heading.mjs "Person Responsible" --icon '<svg viewBox="0 0 20 20" ...>...</svg>'
 node build-heading.mjs "Person Responsible" --icon person.svg
+
+node build-heading.mjs "Missing Information" --size h1           # h1/h2/h3, default h2
+node build-heading.mjs "Hazards" --icon-color '#D97706:#FBBF24'  # icon-only light:dark fills
+node build-heading.mjs "Permit to Work" --size h1 --no-icon      # text only
 ```
 
 - `build-labels.mjs` regenerates tile chrome around the preserved pills. Run it after
   changing any tile design value, then run the pill verification in §2.
-- `build-heading.mjs` takes the heading text, an optional output filename, and an
+- `build-heading.mjs` takes the heading text, an optional output filename, an
   optional `--icon` (full SVG markup inline, or a path to an .svg file; multi-path
-  icons fine; fills are stripped so it inherits the ink color). Without `--icon` it
-  uses the bars icon. Icon ink is auto-centered on the cap midline (+0.07em optical
-  drop), so any square-viewBox heroicon drops in without alignment tweaks.
+  icons fine; fills are stripped so it inherits the ink color), an optional `--size`
+  (`h1`/`h2`/`h3`, default `h2`), and an optional `--icon-color`
+  (`"<light>"` or `"<light>:<dark>"`, icon only). Without `--icon` it uses the bars
+  icon; `--no-icon` omits the icon entirely (text starts at the left edge). Icon ink
+  is auto-centered on the cap midline and the canvas grows to fit it, so any
+  square-viewBox heroicon drops in without alignment tweaks.
 - Dark-forced previews are written to `tools/preview/` (gitignored — never commit;
   the real files switch via media query).
 
